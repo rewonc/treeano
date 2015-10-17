@@ -1,4 +1,5 @@
 import numbers
+import functools
 
 import numpy as np
 import theano
@@ -12,7 +13,7 @@ def as_fX(x):
     """
     convert input to value with type floatX
     """
-    if isinstance(x, (float, int, long)):
+    if isinstance(x, (float, numbers.Integral)):
         return np.array(x, dtype=fX)
     elif isinstance(x, np.ndarray):
         if x.dtype == np_fX:
@@ -93,14 +94,23 @@ def root_mean_square(x, axis=None):
     return T.sqrt(T.mean(T.sqr(x), axis=axis))
 
 
-def stable_softmax(x):
+def stable_softmax(x, axis=1):
     """
     numerical stabilization to avoid f32 overflow
     http://deeplearning.net/software/theano/library/tensor/nnet/nnet.html#tensor.nnet.softmax
     """
-    e_x = T.exp(x - x.max(axis=1, keepdims=True))
-    out = e_x / e_x.sum(axis=1, keepdims=True)
-    return out
+    # TODO test performance on axis
+    # if this way is slow, could reshape, do the softmax, then reshape back
+    if axis == tuple(range(1, x.ndim)):
+        # reshape, do softmax, then reshape back, in order to be differentiable
+        # TODO could do reshape trick for any set of sequential axes
+        # that end with last (eg. 2,3), not only when starting with axis 1
+        return stable_softmax(x.flatten(2)).reshape(x.shape)
+    else:
+        # TODO add warning for axis with tuple that it is not differntiable
+        e_x = T.exp(x - x.max(axis=axis, keepdims=True))
+        out = e_x / e_x.sum(axis=axis, keepdims=True)
+        return out
 
 
 def squared_error(pred, target):
@@ -183,6 +193,53 @@ def shared_empty(ndim, dtype, name=None):
     create shared variable with placeholder data
     """
     return theano.shared(np.zeros([1] * ndim, dtype=dtype), name=name)
+
+
+def seed_MRG_RandomStreams(rng, seed=12345):
+    """
+    seeds random state of theano.sandbox.rng_mrg.MRG_RandomStreams
+    """
+    rng.rstate = theano.sandbox.rng_mrg.MRG_RandomStreams(seed=seed).rstate
+
+# ############################## smart reducing ##############################
+
+
+def smart_reduce(op, iterable):
+    iterable = list(iterable)
+    if len(iterable) == 1:
+        return iterable[0]
+    else:
+        return functools.reduce(op, iterable[1:], iterable[0])
+
+
+def smart_add(x, y):
+    """
+    0-aware add, to prevent computation graph from getting very large
+    """
+    if x == 0:
+        return y
+    elif y == 0:
+        return x
+    else:
+        return x + y
+
+
+def smart_mul(x, y):
+    """
+    0- and 1- aware multiply, to prevent computation graph from getting very
+    large
+    """
+    if x == 0 or y == 0:
+        return 0
+    elif x == 1:
+        return y
+    elif y == 1:
+        return x
+    else:
+        return x * y
+
+smart_sum = functools.partial(smart_reduce, smart_add)
+smart_product = functools.partial(smart_reduce, smart_mul)
 
 
 # ##################### utils for dealing with networks #####################

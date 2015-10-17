@@ -1,6 +1,8 @@
 import itertools
 
 import numpy as np
+import theano
+import theano.tensor as T
 
 # for importing
 from ..core.inits import (SharedInit,
@@ -29,6 +31,40 @@ GAINS = dict(
     tanh=1.1,
     linear=1,
 )
+
+# ############################## special inits ##############################
+
+
+class TiedInit(SharedInit):
+
+    """
+    uses already defined shared variables for node with name `root_node_name`
+    from node with name `target_node_name`
+    """
+
+    def __init__(self, root_node_name, target_root_node_name):
+        self.root_node_name = root_node_name
+        self.target_root_node_name = target_root_node_name
+
+    def create_shared(self, var):
+        network = var.relative_network
+        assert network is not None
+        node_name = network._name
+        assert self.root_node_name in node_name
+        target_node_name = node_name.replace(self.root_node_name,
+                                             self.target_root_node_name,
+                                             1)
+        # HACK there should be a better way to to do this!
+        node_name2, vw_key = var.name.split(":")
+        # sanity check, just to be sure
+        assert node_name2 == node_name
+        shared = network[target_node_name].get_variable(vw_key).variable
+        assert shared.dtype == var.dtype
+        assert shared.get_value().shape == var.shape
+        assert shared.broadcastable == var.broadcastable
+        var.is_shared_ = False
+        var.tags_ = {"tied"}
+        return theano.compile.view_op(shared)
 
 
 # ############################### weight inits ###############################

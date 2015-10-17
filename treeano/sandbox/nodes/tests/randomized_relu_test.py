@@ -1,3 +1,6 @@
+from __future__ import division, absolute_import
+from __future__ import print_function, unicode_literals
+
 import nose.tools as nt
 import numpy as np
 import theano
@@ -39,5 +42,5 @@ def test_rrelu_node2():
     fn = network.function(["i"], ["p"])
     x = -np.random.rand(100, 100).astype(fX)
     res = fn(x)[0]
-    assert res.min() > -2 / 11
+    assert res.min() > -1 / 3.
     assert res.max() < 0

@@ -1,5 +1,4 @@
-import types
-
+import six
 import theano
 import theano.tensor as T
 
@@ -68,6 +67,7 @@ class Network(object):
         # initialize long range dependencies
         # ---
         # order doesn't matter
+        # done before init_state because some nodes need to know their inputs
         for node in self.graph.architectural_tree_nodes_root_to_leaves():
             node.init_long_range_dependencies(self.relative_network(node))
         # initialize state
@@ -155,7 +155,7 @@ class Network(object):
         network.network_variable(("fc1", "W"))
         network.network_variable(var)  # no-op
         """
-        if isinstance(query, types.StringTypes):
+        if isinstance(query, six.string_types):
             node_name = query
             from_key = "default"
         elif isinstance(query, tuple):
@@ -197,8 +197,8 @@ class Network(object):
             # convert into format expected by theano.function
             updates = all_deltas.to_updates()
 
-        transformed_inputs = map(self.network_variable, inputs)
-        transformed_outputs = map(self.network_variable, outputs)
+        transformed_inputs = [self.network_variable(i) for i in inputs]
+        transformed_outputs = [self.network_variable(i) for i in outputs]
 
         if givens is None:
             tmp_givens = []
@@ -214,6 +214,9 @@ class Network(object):
                              givens=transformed_givens,
                              **kwargs)
         return fn
+
+    def is_relative(self):
+        return False
 
 
 class NoDefaultValue(object):
@@ -240,6 +243,9 @@ class RelativeNetwork(object):
 
     def __getitem__(self, name):
         return self._network[name]
+
+    def is_relative(self):
+        return True
 
     def store_inputs(self, inputs):
         """
@@ -359,29 +365,27 @@ class RelativeNetwork(object):
         return variable wrappers matching all of the given tags
         """
         remaining_vws = [
-            variable
+            vw
             for name in self.graph.architecture_subtree_names(self._name)
-            for variable in self[name]._state["current_variables"].values()]
+            for vw in self[name]._state["current_variables"].values()]
         if tags is not None:
             tags = set(tags)
             # only keep variables where all tags match
-            remaining_vws = filter(lambda v: len(tags - v.tags) == 0,
-                                   remaining_vws)
+            remaining_vws = [vw for vw in remaining_vws
+                             if len(tags - vw.tags) == 0]
         if is_shared is not None:
-            remaining_vws = filter(lambda v: v.is_shared == is_shared,
-                                   remaining_vws)
+            remaining_vws = [vw for vw in remaining_vws
+                             if is_shared == vw.is_shared]
         return remaining_vws
 
     def find_nodes_in_subtree(self, cls):
         """
         return all nodes with the given class
         """
-        def predicate(node):
-            return node.__class__ is cls
+        return [node for node in self.graph.architecture_subtree(self._name)
+                if node.__class__ is cls]
 
-        return filter(predicate, self.graph.architecture_subtree(self._name))
-
-    def create_variable(self, name, **kwargs):
+    def create_vw(self, name, **kwargs):
         """
         creates a new output variable for the current node
         """
@@ -399,14 +403,14 @@ class RelativeNetwork(object):
         self._state['original_variables'][name] = variable
         return variable
 
-    def copy_variable(self, name, previous_variable, tags=None):
+    def copy_vw(self, name, previous_vw, tags=None):
         """
-        creates a copy of previous_variable under a new name
+        creates a copy of previous_vw under a new name
 
         the main use case for this is for wrapper nodes which just pass
         their input as their output
         """
-        variable = previous_variable.variable
+        variable = previous_vw.variable
         if utils.is_shared_variable(variable):
             # creating a "copy"of the variable
             # ---
@@ -415,10 +419,10 @@ class RelativeNetwork(object):
             # ---
             # why tensor_copy? theano.compile.view_op doesn't support Rop
             variable = T.tensor_copy(variable)
-        return self.create_variable(
+        return self.create_vw(
             name,
             variable=variable,
-            shape=previous_variable.shape,
+            shape=previous_vw.shape,
             tags=tags,
         )
 

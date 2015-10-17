@@ -14,7 +14,7 @@ import canopy
 fX = theano.config.floatX
 
 
-def test_remove_node():
+def test_remove_nodes():
     network1 = tn.SequentialNode(
         "seq",
         [tn.InputNode("i", shape=()),
@@ -29,18 +29,14 @@ def test_remove_node():
         )]).network()
     fn1 = network1.function(["i"], ["seq"])
     nt.assert_equal(1, fn1(0)[0])
-    network2 = canopy.transforms.remove_node(network1, {"hp2"})
+    network2 = canopy.transforms.remove_nodes(network1,
+                                              {"hp2"},
+                                              keep_child=True)
     fn2 = network2.function(["i"], ["seq"])
     nt.assert_equal(2, fn2(0)[0])
-    network3 = canopy.transforms.remove_node(network1, {"ac"})
+    network3 = canopy.transforms.remove_nodes(network1, {"ac"})
     fn3 = network3.function(["i"], ["seq"])
     nt.assert_equal(0, fn3(0)[0])
-
-    @nt.raises(ValueError)
-    def fails():
-        canopy.transforms.remove_node(network1, {"seq"})
-
-    fails()
 
 
 def test_remove_subtree():
@@ -116,3 +112,46 @@ def test_add_hyperparameters():
     nt.assert_equal(3, fn2a(0)[0])
     fn2b = network2.function(["i"], ["hp"])
     nt.assert_equal(3, fn2b(0)[0])
+
+
+def test_remove_parents():
+    network1 = tn.SequentialNode(
+        "seq",
+        [tn.InputNode("i", shape=()),
+         tn.HyperparameterNode(
+             "hp1",
+             tn.HyperparameterNode(
+                 "hp2",
+                 tn.AddConstantNode("ac"),
+                 value=1
+             ),
+             value=2
+        )]).network()
+
+    network2 = canopy.transforms.remove_parents(network1, "ac")
+
+    nt.assert_equal(tn.AddConstantNode("ac"), network2.root_node)
+
+
+def test_move_node():
+    network1 = tn.SequentialNode(
+        "seq",
+        [tn.InputNode("i", shape=()),
+         tn.HyperparameterNode(
+             "hp1",
+             tn.HyperparameterNode(
+                 "hp2",
+                 tn.AddConstantNode("ac"),
+                 value=1
+             ),
+             value=2
+        )]).network()
+
+    network2 = canopy.transforms.move_node(network1, "ac", "hp1")
+
+    ans = tn.SequentialNode(
+        "seq",
+        [tn.InputNode("i", shape=()),
+         tn.AddConstantNode("ac")])
+
+    nt.assert_equal(ans, network2.root_node)

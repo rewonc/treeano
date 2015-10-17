@@ -33,7 +33,7 @@ class NodeImpl(NodeAPI):
         def compute_output(self, network, in1, in2):
             # in1 and in2 correspond to input_keys
             assert in1.shape == in2.shape
-            network.create_variable(
+            network.create_vw(
                 name="default",
                 variable=in1.variable + in2.variable,
                 shape=in1.shape,
@@ -66,7 +66,7 @@ class NodeImpl(NodeAPI):
 
     def __repr__(self):
         param_pairs = [("name", self.name)]
-        param_pairs.extend(self.hyperparameters.iteritems())
+        param_pairs.extend(self.hyperparameters.items())
         param_str = ", ".join("%s=%s" % (k, repr(v)) for k, v in param_pairs)
         root = "%s(%s)" % (self.__class__.__name__, param_str)
         # OPTIMIZE
@@ -129,9 +129,9 @@ class NodeImpl(NodeAPI):
         """
         by default, return first input as output
         """
-        network.copy_variable(
+        network.copy_vw(
             name="default",
-            previous_variable=args[0],
+            previous_vw=args[0],
             tags={"output"},
         )
 

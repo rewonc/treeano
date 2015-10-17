@@ -16,7 +16,7 @@ def test_output_nanguard():
         class CustomNode(treeano.NodeImpl):
 
             def compute_output(self, network, in_vw):
-                network.create_variable(
+                network.create_vw(
                     "default",
                     variable=in_vw.variable / a,
                     shape=in_vw.shape
@@ -42,32 +42,32 @@ def test_output_nanguard():
     try:
         fn2({"x": 3})
     except Exception as e:
-        assert e.message["error_type"] == "inf"
-        np.testing.assert_equal(e.message["value"], np.array(np.inf))
+        assert e.args[0]["error_type"] == "inf"
+        np.testing.assert_equal(e.args[0]["value"], np.array(np.inf))
     else:
         assert False
 
     try:
         fn2({"x": -6})
     except Exception as e:
-        nt.assert_equal(e.message["error_type"], "inf")
-        np.testing.assert_equal(e.message["value"], np.array(-np.inf))
+        nt.assert_equal(e.args[0]["error_type"], "inf")
+        np.testing.assert_equal(e.args[0]["value"], np.array(-np.inf))
     else:
         assert False
 
     try:
         fn2({"x": 0})
     except Exception as e:
-        nt.assert_equal(e.message["error_type"], "nan")
-        np.testing.assert_equal(e.message["value"], np.array(np.nan))
+        nt.assert_equal(e.args[0]["error_type"], "nan")
+        np.testing.assert_equal(e.args[0]["value"], np.array(np.nan))
     else:
         assert False
 
     try:
         fn1({"x": 6e10})
     except Exception as e:
-        nt.assert_equal(e.message["error_type"], "big")
-        np.testing.assert_allclose(e.message["value"],
+        nt.assert_equal(e.args[0]["error_type"], "big")
+        np.testing.assert_allclose(e.args[0]["value"],
                                    np.array(2e10),
                                    rtol=1e-5)
     else:
@@ -79,7 +79,7 @@ def test_nanguardmode():
         class CustomNode(treeano.NodeImpl):
 
             def compute_output(self, network, in_vw):
-                network.create_variable(
+                network.create_vw(
                     "default",
                     variable=in_vw.variable / a,
                     shape=in_vw.shape
@@ -124,14 +124,14 @@ def test_save_last_inputs_and_networks():
     class StateDiffNode(treeano.NodeImpl):
 
         def compute_output(self, network, in_vw):
-            foo_vw = network.create_variable(
+            foo_vw = network.create_vw(
                 "foo",
                 shape=(),
                 is_shared=True,
                 tags={"parameter", "weight"},
                 inits=[]
             )
-            network.create_variable(
+            network.create_vw(
                 "default",
                 variable=abs(in_vw.variable - foo_vw.variable),
                 shape=()
@@ -161,11 +161,14 @@ def test_save_last_inputs_and_networks():
 
     nt.assert_equal(save_handler.inputs_, inputs[-5:])
 
-    for value_dict, i, o in zip(save_handler.value_dicts_,
-                                inputs[-5:],
-                                outputs[-5:]):
+    # PY3: calling list on zip to make it eager
+    # otherwise, save_handler.value_dicts_ looks at the mutating
+    # value ducts
+    for value_dict, i, o in list(zip(save_handler.value_dicts_,
+                                     inputs[-5:],
+                                     outputs[-5:])):
         canopy.network_utils.load_value_dict(network, value_dict)
-        nt.assert_equal(fn(i), o)
+        nt.assert_equal(o, fn(i))
 
 
 def test_network_nanguard():
@@ -173,7 +176,7 @@ def test_network_nanguard():
         input_keys = ()
 
         def compute_output(self, network):
-            network.create_variable(
+            network.create_vw(
                 "default",
                 is_shared=True,
                 shape=(),

@@ -1,3 +1,6 @@
+from __future__ import division, absolute_import
+from __future__ import print_function, unicode_literals
+
 import nose.tools as nt
 import numpy as np
 import theano
@@ -27,7 +30,7 @@ def test_pool_output_shape():
             ignore_border=ignore_border,
             padding=pads,
         ).shape.eval()
-        print ans, res
+        print(ans, res)
         np.testing.assert_equal(ans, res)
 
     test_same((3, 4, 5, 6), (2, 3), (1, 1), (0, 0), False)
@@ -63,7 +66,7 @@ def test_pool_output_shape_custom_pool_2d_node():
                                  )]
         ).network()
         ans = network["p"].get_variable("default").variable.shape.eval()
-        print ans, res
+        print(ans, res)
         np.testing.assert_equal(ans, res)
 
     test_same((3, 4, 5, 6), (2, 3), (1, 1), (0, 0), True)
@@ -137,18 +140,20 @@ def test_max_pool_2d_node():
                     network["m"].get_variable("default").shape)
 
 
-def test_sum_pool_2d_node():
-    network = tn.SequentialNode(
-        "s",
-        [tn.InputNode("i", shape=(1, 1, 4, 4)),
-         tn.SumPool2DNode("m", pool_size=(2, 2))]).network()
-    fn = network.function(["i"], ["m"])
-    x = np.arange(16).astype(fX).reshape(1, 1, 4, 4)
-    ans = np.array([[[[0 + 1 + 4 + 5, 2 + 3 + 6 + 7],
-                      [8 + 9 + 12 + 13, 10 + 11 + 14 + 15]]]], dtype=fX)
-    np.testing.assert_equal(ans, fn(x)[0])
-    nt.assert_equal(ans.shape,
-                    network["m"].get_variable("default").shape)
+# sum pool doesn't work with cudnn
+if "gpu" not in theano.config.device:
+    def test_sum_pool_2d_node():
+        network = tn.SequentialNode(
+            "s",
+            [tn.InputNode("i", shape=(1, 1, 4, 4)),
+             tn.SumPool2DNode("m", pool_size=(2, 2))]).network()
+        fn = network.function(["i"], ["m"])
+        x = np.arange(16).astype(fX).reshape(1, 1, 4, 4)
+        ans = np.array([[[[0 + 1 + 4 + 5, 2 + 3 + 6 + 7],
+                          [8 + 9 + 12 + 13, 10 + 11 + 14 + 15]]]], dtype=fX)
+        np.testing.assert_equal(ans, fn(x)[0])
+        nt.assert_equal(ans.shape,
+                        network["m"].get_variable("default").shape)
 
 
 def test_custom_global_pool_node():

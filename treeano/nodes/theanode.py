@@ -11,6 +11,38 @@ from .. import theano_extensions
 fX = theano.config.floatX
 
 
+@core.register_node("sqr")
+class SqrNode(core.NodeImpl):
+
+    """
+    like theano.tensor.sqr
+    """
+
+    def compute_output(self, network, in_vw):
+        network.create_vw(
+            "default",
+            variable=T.sqr(in_vw.variable),
+            shape=in_vw.shape,
+            tags={"output"},
+        )
+
+
+@core.register_node("sqrt")
+class SqrtNode(core.NodeImpl):
+
+    """
+    like theano.tensor.sqrt
+    """
+
+    def compute_output(self, network, in_vw):
+        network.create_vw(
+            "default",
+            variable=T.sqrt(in_vw.variable),
+            shape=in_vw.shape,
+            tags={"output"},
+        )
+
+
 @core.register_node("tile")
 class TileNode(core.NodeImpl):
 
@@ -24,7 +56,7 @@ class TileNode(core.NodeImpl):
         reps = network.find_hyperparameter(["reps"])
         shape = in_vw.shape
         v = in_vw.variable
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=T.tile(v, reps),
             shape=tuple(s * r for s, r in zip(shape, reps)),
@@ -52,7 +84,7 @@ class ToOneHotNode(core.NodeImpl):
         if cast_int32:
             v = v.astype("int32")
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=T.extra_ops.to_one_hot(v, nb_class=nb_class, dtype=dtype),
             shape=in_vw.shape + (nb_class,),
@@ -82,14 +114,14 @@ class ReshapeNode(core.NodeImpl):
         if -1 in new_shape:
             # should have only 1 -1
             assert sum([s == -1 for s in out_shape]) == 1
-            out_shape = [None if s == -1 else s for s in out_shape]
+            out_shape = tuple([None if s == -1 else s for s in out_shape])
 
         # FIXME
         # out_var = T.reshape(in_vw.variable,
         #                     newshape=new_shape,
         #                     ndim=len(new_shape))
         out_var = in_vw.variable.reshape(new_shape)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -111,7 +143,7 @@ class DimshuffleNode(core.NodeImpl):
         out_var = in_vw.variable.dimshuffle(*pattern)
         out_shape = tuple([1 if i == "x" else in_vw.shape[i]
                            for i in pattern])
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -128,7 +160,41 @@ class GradientReversalNode(core.NodeImpl):
 
     def compute_output(self, network, in_vw):
         out_var = theano_extensions.gradient.gradient_reversal(in_vw.variable)
-        network.create_variable(
+        network.create_vw(
+            "default",
+            variable=out_var,
+            shape=in_vw.shape,
+            tags={"output"}
+        )
+
+
+@core.register_node("zero_grad")
+class ZeroGradNode(core.NodeImpl):
+
+    """
+    like theano.gradient.zero_grad
+    """
+
+    def compute_output(self, network, in_vw):
+        out_var = theano.gradient.zero_grad(in_vw.variable)
+        network.create_vw(
+            "default",
+            variable=out_var,
+            shape=in_vw.shape,
+            tags={"output"}
+        )
+
+
+@core.register_node("disconnected_grad")
+class DisconnectedGradNode(core.NodeImpl):
+
+    """
+    like theano.gradient.disconnected_grad
+    """
+
+    def compute_output(self, network, in_vw):
+        out_var = theano.gradient.disconnected_grad(in_vw.variable)
+        network.create_vw(
             "default",
             variable=out_var,
             shape=in_vw.shape,

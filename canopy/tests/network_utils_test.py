@@ -20,9 +20,24 @@ def test_to_shared_dict():
              inits=[treeano.inits.ConstantInit(42.42)])]
     ).network()
     sd = canopy.network_utils.to_shared_dict(network)
-    nt.assert_equal(sd.keys(), ["lm:weight"])
-    np.testing.assert_equal(sd.values()[0].get_value(),
-                            42.42 * np.ones((10, 15), dtype=fX))
+    nt.assert_equal(["lm:weight"], list(sd.keys()))
+    np.testing.assert_equal(42.42 * np.ones((10, 15), dtype=fX),
+                            list(sd.values())[0].get_value())
+
+
+def test_to_shared_dict_relative_network():
+    network = tn.SequentialNode(
+        "seq",
+        [tn.InputNode("i", shape=(10,)),
+         tn.LinearMappingNode("lm1", output_dim=15),
+         tn.LinearMappingNode("lm2", output_dim=15)]
+    ).network()
+    nt.assert_equal({"lm1:weight", "lm2:weight"},
+                    set(canopy.network_utils.to_shared_dict(network)))
+    nt.assert_equal({"lm1:weight"},
+                    set(canopy.network_utils.to_shared_dict(network["lm1"])))
+    nt.assert_equal({"lm2:weight"},
+                    set(canopy.network_utils.to_shared_dict(network["lm2"])))
 
 
 def test_to_value_dict():
@@ -35,9 +50,9 @@ def test_to_value_dict():
              inits=[treeano.inits.ConstantInit(42.42)])]
     ).network()
     sd = canopy.network_utils.to_value_dict(network)
-    nt.assert_equal(sd.keys(), ["lm:weight"])
-    np.testing.assert_equal(sd["lm:weight"],
-                            42.42 * np.ones((10, 15), dtype=fX))
+    nt.assert_equal(["lm:weight"], list(sd.keys()))
+    np.testing.assert_equal(42.42 * np.ones((10, 15), dtype=fX),
+                            sd["lm:weight"])
 
 
 def test_load_value_dict():
@@ -119,8 +134,8 @@ def test_to_preallocated_init1():
              inits=inits)]
     ).network()
 
-    w1 = canopy.network_utils.to_shared_dict(network1).values()[0]
-    w2 = canopy.network_utils.to_shared_dict(network2).values()[0]
+    w1 = list(canopy.network_utils.to_shared_dict(network1).values())[0]
+    w2 = list(canopy.network_utils.to_shared_dict(network2).values())[0]
     # both networks should be using the exact same shared variables
     assert w1 is w2
 

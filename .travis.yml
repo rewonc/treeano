@@ -1,0 +1,28 @@
+language: python
+sudo: false
+python:
+  - "2.7"
+  - "3.4"
+addons:
+  apt:
+    packages:
+    - libblas-dev
+    - liblapack-dev
+    - gfortran
+before_install:
+  - pip install -U pip
+install:
+  - pip install numpy
+  - pip install https://github.com/theano/theano/archive/master.zip
+  - pip install networkx
+  - pip install six
+  - pip install toolz
+  - pip install lasagne
+  - pip install scikit-image
+  - pip install nose
+script: nosetests -v
+cache:
+  - apt
+  - directories:
+    - $HOME/.cache/pip
+    - $HOME/.theano

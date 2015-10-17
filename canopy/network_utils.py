@@ -5,10 +5,14 @@ import treeano
 
 def to_shared_dict(network):
     network.build()
-    vws = network[network.root_node.name].find_vws_in_subtree(is_shared=True)
+    if not network.is_relative():
+        network = network[network.root_node.name]
+    vws = network.find_vws_in_subtree(is_shared=True)
     name_to_shared = {}
     for vw in vws:
         assert vw.name not in name_to_shared
+        # if vw.name != vw.variable.name, preallocated init will break
+        assert vw.name == vw.variable.name
         name_to_shared[vw.name] = vw.variable
     return name_to_shared
 

@@ -35,7 +35,9 @@ class DnnPoolNode(core.NodeImpl):
         assert dim in [2, 3]
         stride = network.find_hyperparameter(["pool_stride",
                                               "stride"],
-                                             (1,) * dim)
+                                             None)
+        if stride is None:
+            stride = pool_size
         pad = network.find_hyperparameter(["pool_pad", "pad"], (0,) * dim)
         assert dim == len(stride) == len(pad)
         if dim == 2:
@@ -54,7 +56,7 @@ class DnnPoolNode(core.NodeImpl):
                                pad=pad,
                                mode=mode)
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -107,7 +109,7 @@ class DnnConv2DNode(core.NodeImpl):
 
         # create weight
         num_channels = in_vw.shape[1]
-        W = network.create_variable(
+        W = network.create_vw(
             name="weight",
             is_shared=True,
             shape=(num_filters, num_channels) + tuple(filter_size),
@@ -127,7 +129,7 @@ class DnnConv2DNode(core.NodeImpl):
                                            conv_shape=filter_size,
                                            strides=stride,
                                            pads=pad)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -170,7 +172,7 @@ class DnnConv3DNode(core.NodeImpl):
 
         # create weight
         num_channels = in_vw.shape[1]
-        W = network.create_variable(
+        W = network.create_vw(
             name="weight",
             is_shared=True,
             shape=(num_filters, num_channels) + tuple(filter_size),
@@ -190,7 +192,7 @@ class DnnConv3DNode(core.NodeImpl):
                                            conv_shape=filter_size,
                                            strides=stride,
                                            pads=pad)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,

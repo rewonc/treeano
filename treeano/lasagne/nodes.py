@@ -28,7 +28,7 @@ def wrap_lasagne_node(network, in_vw, param_kwargs, constructor, kwargs):
         assert name in param_kwargs
         assert "tags" in param_kwargs[name]
         assert "inits" in param_kwargs[name]
-        vw = network.create_variable(
+        vw = network.create_vw(
             name=name,
             is_shared=True,
             shape=param.get_value().shape,
@@ -36,7 +36,7 @@ def wrap_lasagne_node(network, in_vw, param_kwargs, constructor, kwargs):
         )
         to_replace[param] = vw.variable
     new_output, = utils.deep_clone([output], to_replace)
-    network.create_variable(
+    network.create_vw(
         name="default",
         variable=new_output,
         shape=output_shape,
@@ -58,6 +58,14 @@ class LasagneUpdatesNode(nodes.StandardUpdatesNode):
     def _new_update_deltas(self, network, parameters, grads):
         parameter_variables = [p.variable for p in parameters]
         updates = self._lasagne_updates(network, parameter_variables, grads)
+        if isinstance(updates, dict):
+            updates = list(updates.items())
+        # HACK around lasagne not giving names to temporary variables
+        counter = 0
+        for var, _ in updates:
+            if var.name is None:
+                counter += 1
+                var.name = "%s_unnamed_state%d" % (self.name, counter)
         return core.UpdateDeltas.from_updates(updates)
 
     def _lasagne_updates(self, network, parameter_variables, grads):

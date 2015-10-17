@@ -32,7 +32,7 @@ class VariableHyperparameterNode(core.Wrapper1NodeImpl):
         # also create variable
         dtype = network.find_hyperparameter(["dtype"], fX)
         shape = network.find_hyperparameter(["shape"], ())
-        network.create_variable(
+        network.create_vw(
             "hyperparameter",
             shape=shape,
             dtype=dtype,
@@ -79,7 +79,7 @@ class SharedHyperparameterNode(core.Wrapper1NodeImpl):
             ["inits"],
             [])))
         # TODO take in optional initial value instead of dtype/shape
-        raw_vw = network.create_variable(
+        raw_vw = network.create_vw(
             "raw_hyperparameter",
             shape=shape,
             dtype=dtype,
@@ -89,9 +89,9 @@ class SharedHyperparameterNode(core.Wrapper1NodeImpl):
         )
         # create a copy of the shared variable, so we can use this to
         # update the variable
-        network.copy_variable(
+        network.copy_vw(
             name="hyperparameter",
-            previous_variable=raw_vw,
+            previous_vw=raw_vw,
             tags={"hyperparameter", "monitor"},
         )
 
@@ -147,7 +147,7 @@ class OutputHyperparameterNode(core.NodeImpl):
         else:
             raise ValueError("Unknown hyperparameter type of %s" % res)
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=var,
             shape=shape,

@@ -84,17 +84,23 @@ class Conv2DNode(core.NodeImpl):
         num_filters = network.find_hyperparameter(["num_filters"])
         filter_size = network.find_hyperparameter(["filter_size"])
         stride = network.find_hyperparameter(["conv_stride", "stride"], (1, 1))
-        pad = network.find_hyperparameter(["conv_pad", "pad"], "valid")
         inits = list(toolz.concat(network.find_hyperparameters(
             ["inits"],
             [])))
+        pad = network.find_hyperparameter(["conv_pad", "pad"], "valid")
+
+        # convert numerical pad to valid or full
+        if pad == (0, 0):
+            pad = "valid"
+        elif pad == tuple([fs - 1 for fs in filter_size]):
+            pad = "full"
         assert len(filter_size) == 2
         assert pad in ["valid", "full"]
 
         # create weight
         num_channels = in_vw.shape[1]
         filter_shape = (num_filters, num_channels) + tuple(filter_size)
-        W = network.create_variable(
+        W = network.create_vw(
             name="weight",
             is_shared=True,
             shape=filter_shape,
@@ -116,7 +122,7 @@ class Conv2DNode(core.NodeImpl):
                                       strides=stride,
                                       pads=conv_parse_pad(filter_size, pad))
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -157,7 +163,7 @@ class Conv3DNode(core.NodeImpl):
         # create weight
         num_channels = in_vw.shape[1]
         filter_shape = (num_filters, num_channels) + tuple(filter_size)
-        W = network.create_variable(
+        W = network.create_vw(
             name="weight",
             is_shared=True,
             shape=filter_shape,
@@ -166,7 +172,7 @@ class Conv3DNode(core.NodeImpl):
         ).variable
         # create bias
         if include_bias:
-            b = network.create_variable(
+            b = network.create_vw(
                 name="bias",
                 is_shared=True,
                 shape=(num_filters,),
@@ -193,7 +199,7 @@ class Conv3DNode(core.NodeImpl):
                                       strides=stride,
                                       pads=(0, 0, 0))
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -234,7 +240,7 @@ class Conv3D2DNode(core.NodeImpl):
         # create weight
         num_channels = in_vw.shape[1]
         filter_shape = (num_filters, num_channels) + tuple(filter_size)
-        W = network.create_variable(
+        W = network.create_vw(
             name="weight",
             is_shared=True,
             shape=filter_shape,
@@ -264,7 +270,7 @@ class Conv3D2DNode(core.NodeImpl):
                                       strides=stride,
                                       pads=conv_parse_pad(filter_size, pad))
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,

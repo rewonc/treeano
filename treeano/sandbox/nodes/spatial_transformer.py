@@ -153,13 +153,13 @@ class AffineSpatialTransformerNode(treeano.Wrapper1NodeImpl):
                                               y_s,
                                               *output_shape)
 
-        network.create_variable(
+        network.create_vw(
             "affine_parameters",
             variable=affine_parameters,
             shape=(in_vw.shape[0], 2, 3),
             tags={},
         )
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=in_vw.shape[:2] + output_shape,
@@ -203,13 +203,13 @@ class TranslationAndScaleSpatialTransformerNode(treeano.Wrapper1NodeImpl):
                                               y_s,
                                               *output_shape)
 
-        network.create_variable(
+        network.create_vw(
             "affine_parameters",
             variable=affine_parameters,
             shape=(in_vw.shape[0], 2, 3),
             tags={},
         )
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=in_vw.shape[:2] + output_shape,
@@ -230,6 +230,7 @@ class RotateShearStretchSpatialTransformerNode(treeano.Wrapper1NodeImpl):
         # create a matrix to convert 3 input parameters into the 6
         # parameters for an affine transform
         # FIXME this is incorrect, and does allow scaling
+        assert False
         params_to_affine = np.zeros((3, 2, 3), dtype=fX)
         # for parameters x, y, and z, convert to the following matrix:
         # x y 0
@@ -255,13 +256,13 @@ class RotateShearStretchSpatialTransformerNode(treeano.Wrapper1NodeImpl):
                                               y_s,
                                               *output_shape)
 
-        network.create_variable(
+        network.create_vw(
             "affine_parameters",
             variable=affine_parameters,
             shape=(in_vw.shape[0], 2, 3),
             tags={},
         )
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=in_vw.shape[:2] + output_shape,

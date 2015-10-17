@@ -1,7 +1,7 @@
 import theano
 import theano.tensor as T
 from theano.tensor.nnet.neighbours import images2neibs
-from theano.tensor.signal.downsample import max_pool_2d
+from theano.tensor.signal.downsample import max_pool_2d, DownsampleFactorMax
 
 from .. import core
 from .. import utils
@@ -42,6 +42,16 @@ def pool_output_shape(input_shape,
     """
     compute output shape for a pool
     """
+    # TODO: use this function
+    # as of 20150926, it appears to be incorrect
+    # return tuple(DownsampleFactorMax.out_shape(
+    #     imgshape=input_shape,
+    #     ds=pool_shape,
+    #     st=strides,
+    #     ignore_border=ignore_border,
+    #     padding=pads,
+    # ))
+
     if strides is None:
         strides = pool_shape
 
@@ -92,7 +102,7 @@ class FeaturePoolNode(core.NodeImpl):
         reshaped = in_var.reshape(new_symbolic_shape)
         out_var = pool_fn(reshaped, axis=axis + 1)
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -106,8 +116,9 @@ class MaxoutNode(core.Wrapper0NodeImpl):
     """
     from "Maxout Networks" http://arxiv.org/abs/1302.4389
     """
-    hyperparameter_names = filter(lambda x: x != "pool_function",
-                                  FeaturePoolNode.hyperparameter_names)
+    hyperparameter_names = tuple(
+        [n for n in FeaturePoolNode.hyperparameter_names
+         if n != "pool_function"])
 
     def architecture_children(self):
         return [FeaturePoolNode(self.name + "_featurepool")]
@@ -162,14 +173,14 @@ class Pool2DNode(core.NodeImpl):
             pool_shape=pool_size,
             strides=stride,
             pads=pad)
-        out_var = max_pool_2d(in_vw.variable,
+        out_var = max_pool_2d(input=in_vw.variable,
                               ds=pool_size,
                               st=stride,
                               ignore_border=ignore_border,
                               padding=pad,
                               mode=mode)
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -189,6 +200,9 @@ def MaxPool2DNode(*args, **kwargs):
 
 
 def SumPool2DNode(*args, **kwargs):
+    """
+    NOTE: does not work on the GPU, and may be slower than mean pool
+    """
     return Pool2DNode(*args, mode="sum", **kwargs)
 
 
@@ -207,7 +221,7 @@ class GlobalPool2DNode(core.NodeImpl):
         pool_size = in_vw.shape[2:]
         pooled = max_pool_2d(in_vw.variable, ds=pool_size, mode=mode)
         out_var = pooled.flatten(2)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -279,7 +293,7 @@ class CustomPool2DNode(core.NodeImpl):
         feats = pool_fn(neibs, axis=1)
         out_var = feats.reshape(symbolic_out_shape)
 
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=out_shape,
@@ -304,7 +318,7 @@ class CustomGlobalPoolNode(core.NodeImpl):
         flattened = in_vw.variable.flatten(3)
         # pool together
         out_var = pool_fn(flattened, axis=2)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=out_var,
             shape=in_vw.shape[:2],

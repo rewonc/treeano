@@ -34,7 +34,7 @@ class ScanInputNode(core.NodeImpl):
                 return out_val
 
         # construct output
-        network.create_variable(
+        network.create_vw(
             name="default",
             is_shared=False,
             shape=remove_scan_axis(in_vw.shape),
@@ -87,15 +87,15 @@ class ScanStateNode(core.NodeImpl):
 
     def compute_output(self, network, initial_state):
         # copy initial state, to be later referenced
-        network.copy_variable(
+        network.copy_vw(
             name="initial_state",
-            previous_variable=initial_state,
+            previous_vw=initial_state,
             tags={"input"},
         )
         # create a new variable representing the output of this node,
         # so that the scan node can replace it with the node's input at a
         # previous time step
-        network.create_variable(
+        network.create_vw(
             name="default",
             is_shared=False,
             shape=initial_state.shape,
@@ -231,7 +231,7 @@ class ScanNode(core.Wrapper1NodeImpl):
         def step(*scan_vars):
             # calculate number for each type of scan var
             num_inputs = len(input_sequences)
-            num_outputs = len(filter(lambda x: x is not None, outputs_info))
+            num_outputs = len([x for x in outputs_info if x is not None])
             num_non_sequences = len(non_sequences)
             assert len(scan_vars) == (num_inputs
                                       + num_outputs
@@ -310,7 +310,7 @@ class ScanNode(core.Wrapper1NodeImpl):
         # FIXME mutate current_variables in network to have new updates
 
         # create final output with the appropriate result
-        network.create_variable(
+        network.create_vw(
             name="default",
             variable=transform_output(result_map[element_output.variable]),
             shape=transform_shape(element_output.shape),

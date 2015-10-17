@@ -15,7 +15,7 @@ class BaseActivationNode(six.with_metaclass(abc.ABCMeta, core.NodeImpl)):
 
     def compute_output(self, network, in_vw):
         new_var = self.activation(network, in_vw)
-        network.create_variable(
+        network.create_vw(
             "default",
             variable=new_var,
             shape=in_vw.shape,
@@ -44,8 +44,11 @@ class SoftmaxNode(BaseActivationNode):
 @core.register_node("stable_softmax")
 class StableSoftmaxNode(BaseActivationNode):
 
+    hyperparameter_names = ("axis",)
+
     def activation(self, network, in_vw):
-        return utils.stable_softmax(in_vw.variable)
+        axis = network.find_hyperparameter(["axis"], 1)
+        return utils.stable_softmax(in_vw.variable, axis=axis)
 
 
 @core.register_node("tanh")
